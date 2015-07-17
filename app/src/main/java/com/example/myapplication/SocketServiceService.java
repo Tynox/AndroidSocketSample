@@ -42,6 +42,8 @@ public class SocketServiceService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        sendThread.interrupt();
+        receiveThread.interrupt();
         socketThread.interrupt();
         Log.d("server", "stop");
     }
@@ -53,27 +55,15 @@ public class SocketServiceService extends Service {
     private ServerSocket serverSocket;
     private Socket clientSocket;
     private Thread socketThread = new Thread(new SocketRunnable());
+    private Thread sendThread;
+    private Thread receiveThread;
 
     private int count = 0;
 
     private class SocketRunnable implements Runnable {
         @Override
         public void run() {
-            while (!Thread.currentThread().isInterrupted() && !serverSocket.isClosed()) {
-                try {
-                    clientSocket = serverSocket.accept();
-                    clientSocket.setKeepAlive(true);
-                    Log.d("server", "accept");
-
-                    receiveMessage();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        private void sendMessage() {
-            new Thread(new Runnable() {
+            sendThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -84,11 +74,9 @@ public class SocketServiceService extends Service {
                         e.printStackTrace();
                     }
                 }
-            }).start();
-        }
+            });
 
-        private void receiveMessage() {
-            new Thread(new Runnable() {
+            receiveThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -99,12 +87,32 @@ public class SocketServiceService extends Service {
                         while ((info = bufferedReader.readLine()) != null) {
                             Log.d("server", "info: " + info);
                         }
-                        sendMessage();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
-            }).start();
+            });
+
+            while (!Thread.currentThread().isInterrupted() && !serverSocket.isClosed()) {
+                try {
+                    clientSocket = serverSocket.accept();
+                    clientSocket.setKeepAlive(true);
+                    Log.d("server", "accept");
+
+                    receiveMessage();
+                    sendMessage();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        private void sendMessage() {
+            sendThread.start();
+        }
+
+        private void receiveMessage() {
+            receiveThread.start();
         }
     }
 }

@@ -24,18 +24,6 @@ public class SocketClientService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    clientSocket = new Socket("localhost", 10086);
-                    receiveMessage();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
     }
 
     @Override
@@ -56,7 +44,6 @@ public class SocketClientService extends Service {
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
                     out.println(content);
                     messageListener.onMessageSent(content);
-                    
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -68,7 +55,7 @@ public class SocketClientService extends Service {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
+                while (!Thread.currentThread().isInterrupted() && !clientSocket.isClosed()) {
                     try {
                         BufferedReader bufferedReader = new BufferedReader(
                                 new InputStreamReader(clientSocket.getInputStream()));
@@ -85,6 +72,18 @@ public class SocketClientService extends Service {
 
     public void setMessageListener(ISocketClientFeedback listener) {
         messageListener = listener;
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    clientSocket = new Socket("localhost", 10086);
+                    receiveMessage();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     private Socket clientSocket;
